@@ -35,6 +35,8 @@ services:
     environment:
       TMF_ENVIRONMENT: docker
       TMF_POSTGRES_HOST: postgres
+      TMF_POSTGRES_PASSWORD: ${TMF_POSTGRES_PASSWORD}
+      TMF_ADMIN_TOKEN: ${TMF_ADMIN_TOKEN:?Defina TMF_ADMIN_TOKEN no arquivo .env}
       TMF_REDIS_HOST: redis
       TMF_CORS_ORIGINS: '["http://localhost:8080"]'
     depends_on:

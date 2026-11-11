@@ -47,7 +47,9 @@ class Settings(BaseSettings):
     watch_binance_spot: list[str] = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT"]
     watch_binance_usdm: list[str] = ["BTCUSDT", "ETHUSDT"]
     watch_binance_coinm: list[str] = ["BTCUSD_PERP"]
-    intervals: list[str] = ["1m", "15m"]  # o primeiro é o principal; o segundo, a temporalidade maior
+    # O primeiro é o principal; o segundo, a temporalidade maior. Em 1m os custos simulados
+    # (taxa + slippage) costumam ser maiores que o próprio movimento; por isso o padrão é 5m.
+    intervals: list[str] = ["5m", "1h"]
     history_limit: int = Field(default=500, ge=100, le=1000)
     stale_after_seconds: float = Field(default=15.0, gt=0)
 

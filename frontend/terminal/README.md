@@ -1,3 +1,4 @@
 # Terminal de análise técnica
 
-Ainda **não implementado**. Previsto para a **FASE 2**.
+O terminal foi incorporado às abas **Gráfico e indicadores** e **Sinais** do dashboard (`frontend/dashboard`).
+Esta pasta fica reservada para uma versão em tela cheia.

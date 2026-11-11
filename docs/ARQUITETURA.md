@@ -1,39 +1,59 @@
 # Arquitetura
 
 ```
-Navegador ──► Nginx ──► Frontend (Next.js)            CAMADA 1 — experiência visual
+Navegador ──► Nginx ──► Frontend (Next.js): escritório 3D + dashboard 2D
                   └───► Backend (FastAPI)
-                          ├─ API REST + WebSocket
-                          ├─ Orquestrador              CAMADA 2 (FASE 5)
-                          ├─ Dez agentes               CAMADA 3 (identidade: FASE 1; inteligência: FASES 5–12)
-                          ├─ Motores determinísticos   CAMADA 4 (FASES 6–10)
-                          │    market_data · indicators · signal_engine · paper_trading · risk_engine
-                          └─ PostgreSQL · Redis        CAMADA 5 — infraestrutura
+                          ├─ API REST + WebSocket /ws/floor
+                          ├─ Orquestrador ── Sala de reuniões ── Modo autônomo
+                          ├─ Dez agentes (lógica de análise)
+                          ├─ Motores determinísticos
+                          │    market_data → indicators → signal_engine → risk_engine → paper_trading
+                          └─ Memória (PostgreSQL)
+        Binance (dados públicos, somente leitura) ──► market_data
 ```
 
 ## Princípios
 
-1. **Lógica financeira fora dos agentes generativos.** Agentes interpretam e colaboram; preços,
-   indicadores, risco e execução simulada são calculados por código determinístico e testado.
-2. **Execução real impossível por construção.** `backend/core/safety.py` fixa
-   `REAL_EXECUTION_ENABLED = False` no código; não há configuração que mude isso, e o backend se
-   recusa a iniciar se uma variável de ambiente pedir execução real. Nenhum agente tem ferramenta
-   de corretora — só o Execution Agent pode enviar ordens, e apenas ao Paper Trading Engine.
-3. **A tela mostra só estado verdadeiro.** O estado dos agentes vive em `AgentRegistry`; toda
-   mudança vira evento (`agent.status_changed`) com `trace_id` e chega ao navegador por WebSocket
-   (`/ws/agents`). Não existe rota pública para "fingir" um estado.
-4. **Erros visíveis.** Serviço fora do ar aparece como "Fonte indisponível"; ligação perdida
-   aparece como "Reconectando"/"Desconectado".
-5. **Memória separada.** Esquema `operational` (memória dos agentes) e esquema `financial`
-   (histórico da simulação). O `event_log` é somente de inclusão.
+1. **Lógica financeira fora de modelos generativos.** Preços, indicadores, decisão, risco e
+   execução simulada são código determinístico e testado.
+2. **Execução real impossível por construção.** `REAL_EXECUTION_ENABLED = False` fixo no código;
+   o backend se recusa a iniciar se o ambiente pedir execução real; o conector de mercado só faz
+   requisições de leitura, sem chave de API; um teste varre o código procurando rotas de ordem,
+   conta ou saque.
+3. **Risk Engine incontornável.** Toda abertura passa por ele *dentro* do Paper Trading Engine.
+   Os limites são imutáveis após a inicialização; não há rota nem ferramenta para alterá-los.
+4. **A tela mostra só estado verdadeiro.** Estados dos agentes vêm de `AgentRegistry` por
+   eventos. Dados atrasados são marcados e bloqueiam análises e operações.
+5. **Erros visíveis.** Fonte fora do ar, banco inacessível e tarefa que falha aparecem no painel.
+6. **Rastreabilidade.** Reunião, sinal, ordem e operação compartilham o mesmo `trace_id`.
 
-## Interfaces da FASE 1
+## Fluxo de uma análise
 
-| Endereço | Para quê |
-|---|---|
-| `GET /health` | Backend está vivo? |
-| `GET /api/v1/system/status` | Modo, serviços e fases |
-| `GET /api/v1/agents` e `/api/v1/agents/{id}` | Perfil e estado dos agentes |
-| `WS /ws/agents` | Foto inicial + mudanças de estado em tempo real |
+1. Abertura (usuário ou Market Scanner). Dados atrasados ou insuficientes → análise recusada.
+2. Technical, Trend, Quant e News Analyst analisam **em paralelo e sem ver uns aos outros**;
+   cada um emite votos (+1, −1, 0) com peso e justificativa.
+3. Mohamed AI consolida: `score = Σ(direção × peso) / Σ(pesos)`. `≥ +0,35` COMPRA,
+   `≤ −0,35` VENDA, senão NEUTRO (também NEUTRO com menos de 3 critérios direcionais).
+   Divergências entre agentes são listadas, não escondidas.
+4. Risk Manager calcula tamanho, stop (1,5 × ATR) e alvo (2:1) e faz a pré-checagem.
+5. Só no modo autônomo: o diretor autoriza e o Execution Agent envia ao Paper Trading Engine,
+   que reavalia o risco com o preço do momento.
 
-Variáveis de configuração usam o prefixo `TMF_` (ver `backend/core/config.py`).
+## Regras de preenchimento da simulação
+
+Ordens a mercado, preenchidas por inteiro ao último preço real recebido; slippage de 0,05%
+contra a ordem; taxa de 0,1% por lado; stop e alvo avaliados a cada preço novo e fechados ao
+preço observado; uma posição por ativo, sem alavancagem.
+
+## Endereços da API
+
+Leitura (GET): `/health`, `/api/v1/system/status`, `/agents`, `/markets`,
+`/markets/{mercado}/{ativo}/candles`, `/markets/{mercado}/{ativo}/indicators`, `/scanner`,
+`/signals`, `/meetings`, `/paper/portfolio`, `/paper/trades`, `/paper/orders`, `/paper/equity`,
+`/risk`, `/autonomy`, `/reports`, `/research`, `/logs`, `/tasks`.
+
+Ações do usuário (POST, exigem a senha de administrador quando configurada):
+`/signals/analyze`, `/autonomy`, `/risk/kill-switch`, `/paper/close`, `/paper/reset`,
+`/reports/generate`, `/research/run`.
+
+Configuração: variáveis `TMF_*` (ver `.env.example` e `backend/core/config.py`).

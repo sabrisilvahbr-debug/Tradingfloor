@@ -11,7 +11,7 @@ def make_settings(**overrides):
         _env_file=None, postgres_host="", redis_host="",
         watch_binance_spot=["UPUSDT", "DOWNUSDT", "FLATUSDT"], watch_binance_usdm=[], watch_binance_coinm=[],
         scan_interval_seconds=3600, autonomy_interval_seconds=3600,  # ciclos disparados à mão nos testes
-        symbol_cooldown_seconds=0,
+        symbol_cooldown_seconds=0, intervals=["1m", "15m"],
     )
     base.update(overrides)
     return Settings(**base)

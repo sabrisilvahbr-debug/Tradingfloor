@@ -10,10 +10,26 @@ export function wsUrl(path: string): string {
   return `${base.replace(/^http/, "ws")}${path}`;
 }
 
-export async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(apiUrl(path), { cache: "no-store", signal });
+async function parse<T>(response: Response, path: string): Promise<T> {
   if (!response.ok) {
-    throw new Error(`O backend respondeu com erro ${response.status} em ${path}`);
+    let detail = "";
+    try {
+      const body = (await response.json()) as { detail?: unknown };
+      detail = typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail);
+    } catch {
+      /* resposta sem corpo JSON */
+    }
+    throw new Error(detail || `O backend respondeu com erro ${response.status} em ${path}`);
   }
   return (await response.json()) as T;
+}
+
+export async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
+  return parse<T>(await fetch(apiUrl(path), { cache: "no-store", signal }), path);
+}
+
+export async function postJson<T>(path: string, body: unknown, token: string): Promise<T> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return parse<T>(await fetch(apiUrl(path), { method: "POST", headers, body: JSON.stringify(body ?? {}) }), path);
 }

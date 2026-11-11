@@ -25,6 +25,7 @@ from backend.core.config import Settings, get_settings
 from backend.core.logging import configure_logging
 from backend.core.phases import PHASES
 from backend.floor import Floor
+from backend.indicators import core as indicator_core
 from backend.indicators.snapshot import InsufficientDataError, compute_snapshot
 from backend.market_data.base import MarketDataProvider
 from backend.monitoring.health import check_tcp
@@ -167,13 +168,26 @@ def create_app(settings: Settings | None = None, providers: list[MarketDataProvi
     async def candles(market: str, symbol: str, interval: str | None = None, limit: int = 300) -> dict:
         symbol = known_asset(market, symbol)
         interval = interval or floor.market.intervals[0]
-        rows = floor.market.get_candles(market, symbol, interval)[-max(1, min(limit, 1000)):]
+        every = floor.market.get_candles(market, symbol, interval)
+        rows = every[-max(1, min(limit, 1000)):]
+        closes = [c.close for c in every]
+        bands = indicator_core.bollinger(closes)
         return {
             "market": market, "symbol": symbol, "interval": interval,
             "source": floor.market.source_name(market),
             "state": floor.market.state(market).value,
             "quote": floor.market.get_price(market, symbol),
             "candles": [c.to_dict() for c in rows],
+            # Séries para desenhar no gráfico, calculadas pelo motor de indicadores (não pela interface).
+            "overlays": {
+                name: values[-len(rows):] if rows else []
+                for name, values in (
+                    ("ema21", indicator_core.ema(closes, 21)),
+                    ("ema50", indicator_core.ema(closes, 50)),
+                    ("bollinger_upper", bands["upper"]),
+                    ("bollinger_lower", bands["lower"]),
+                )
+            },
         }
 
     @app.get("/api/v1/markets/{market}/{symbol}/indicators")
