@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // O nome precisa ser igual ao nome do Worker no painel da Cloudflare.
+  "name": "trading-mohamed-floor",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": true,
+  "preview_urls": false,
+  "durable_objects": {
+    "bindings": [{ "name": "FLOOR", "class_name": "Floor" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Floor"] }],
+  // A cada minuto o cron garante que o pregão continua rodando, mesmo sem ninguém com a página aberta.
+  "triggers": { "crons": ["* * * * *"] },
+  "vars": {
+    "CORS_ORIGIN_REGEX": "^https://tradingfloor[a-z0-9-]*\\.vercel\\.app$",
+    "BINANCE_REST": "https://data-api.binance.vision"
+  },
+  "observability": { "enabled": true }
+}
