@@ -1,0 +1,14 @@
+{
+  "name": "trading-mohamed-floor",
+  "private": true,
+  "description": "Só para o build da Cloudflare na raiz do repositório. O código do Worker está em cloudflare/ e o painel em frontend/.",
+  "scripts": {
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "decimal.js": "10.6.0"
+  },
+  "devDependencies": {
+    "wrangler": "4.160.1"
+  }
+}

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button, Card, Empty, Table } from "@/components/ui";
+import { getApiBase, setApiBase } from "@/lib/api";
 import { useApi, useFloor, useLive } from "@/lib/floor";
 import { dateTime, pct } from "@/lib/format";
 import type { FloorEvent } from "@/lib/types";
@@ -103,6 +104,22 @@ export function LogsPanel() {
   );
 }
 
+function BackendAddressCard() {
+  const [draft, setDraft] = useState(() => (typeof window === "undefined" ? "" : getApiBase()));
+  return (
+    <Card title="Endereço do backend">
+      <p className="mb-2 text-sm text-mute">
+        URL do Worker da Cloudflare, por exemplo https://trading-mohamed-floor.sua-conta.workers.dev (sem barra no final). Fica salvo só neste navegador.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <input type="url" aria-label="Endereço do backend" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="https://...workers.dev"
+          className="min-w-56 flex-1 rounded-lg border border-line bg-ink px-3 py-2 font-mono text-sm" />
+        <Button kind="primary" onClick={() => { setApiBase(draft); window.location.reload(); }}>Salvar e recarregar</Button>
+      </div>
+    </Card>
+  );
+}
+
 export function SettingsPanel() {
   const { system, token, setToken, act, portfolio } = useFloor();
   const [draft, setDraft] = useState(token);
@@ -111,6 +128,7 @@ export function SettingsPanel() {
   const live = useLive();
   return (
     <div className="space-y-4">
+      <BackendAddressCard />
       <Card title="Senha de administrador">
         <p className="mb-2 text-sm text-mute">
           {system?.admin_token_required

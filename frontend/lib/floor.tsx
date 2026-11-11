@@ -171,7 +171,7 @@ export function FloorProvider({ children }: { children: React.ReactNode }) {
       } catch (e) {
         if (controller.signal.aborted) return;
         setSystem(null);
-        setError(e instanceof Error ? `Falha ao consultar o backend: ${e.message}` : "Falha ao consultar o backend.");
+        setError(e instanceof Error ? `Falha ao consultar o backend: ${e.message}. Confira o endereço do backend na aba Config.` : "Falha ao consultar o backend. Confira o endereço do backend na aba Config.");
       }
     };
     void load();

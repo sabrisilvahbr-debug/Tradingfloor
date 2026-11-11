@@ -1,12 +1,47 @@
-// Endereços do backend. Vazio = mesmo endereço da página (caso do Nginx/Docker).
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+// Endereço do backend. Vazio = mesmo endereço da página (caso do Nginx/Docker).
+// Ordem: ?api=... na URL da página > valor salvo na aba Config > NEXT_PUBLIC_API_URL > localhost.
+const DEFAULT_API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_URL_KEY = "tmf.api_url";
+
+function clean(url: string): string {
+  return url.trim().replace(/\/+$/, "");
+}
+
+function readOverride(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const fromQuery = new URLSearchParams(window.location.search).get("api");
+    if (fromQuery && /^https?:\/\//.test(fromQuery)) {
+      window.localStorage.setItem(API_URL_KEY, clean(fromQuery));
+      return clean(fromQuery);
+    }
+    return window.localStorage.getItem(API_URL_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function getApiBase(): string {
+  return readOverride() ?? DEFAULT_API_URL;
+}
+
+/** Salva o endereço do backend neste navegador (vazio volta ao padrão do build). */
+export function setApiBase(url: string): void {
+  try {
+    const value = clean(url);
+    if (value) window.localStorage.setItem(API_URL_KEY, value);
+    else window.localStorage.removeItem(API_URL_KEY);
+  } catch {
+    /* navegador sem armazenamento local */
+  }
+}
 
 export function apiUrl(path: string): string {
-  return `${API_URL}${path}`;
+  return `${getApiBase()}${path}`;
 }
 
 export function wsUrl(path: string): string {
-  const base = API_URL || window.location.origin;
+  const base = getApiBase() || window.location.origin;
   return `${base.replace(/^http/, "ws")}${path}`;
 }
 

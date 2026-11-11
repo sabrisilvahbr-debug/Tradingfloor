@@ -6,6 +6,7 @@ COPY frontend .
 # Vazio = o navegador fala com o backend pelo mesmo endereço (via Nginx).
 ARG NEXT_PUBLIC_API_URL=""
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL NEXT_TELEMETRY_DISABLED=1
+ENV TMF_DOCKER=1
 RUN npm run build
 
 FROM node:22-slim

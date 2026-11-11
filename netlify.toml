@@ -1,0 +1,8 @@
+# Netlify: o painel fica em frontend/ e é publicado como site estático.
+[build]
+  base = "frontend"
+  command = "npm ci && npm run build"
+  publish = "out"
+
+[build.environment]
+  NODE_VERSION = "22"
