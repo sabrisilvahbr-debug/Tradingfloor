@@ -1,4 +1,1 @@
-"""Orquestrador multiagente (filas, prioridades, tentativas).
-
-Status: ainda NÃO implementado. Previsto para a FASE 5.
-"""
+"""Orquestrador multiagente, executores, sala de reuniões e modo autônomo."""

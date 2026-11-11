@@ -79,7 +79,7 @@ class EventBus:
         return len(self._subscriptions)
 
     async def publish(self, event: Event) -> None:
-        logger.info(
+        logger.debug(
             "Evento publicado",
             extra={"event_type": event.type, "event_id": event.event_id, "trace_id": event.trace_id},
         )

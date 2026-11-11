@@ -111,7 +111,7 @@ class PaperTradingEngine:
 
         buy = order.side is Side.BUY
         fill = self._fill_price(market_price, buy)
-        notional = fill * order.quantity
+        notional = self._q(fill * order.quantity)
         fee = self._q(notional * self._fee_rate)
         if notional + fee > self.cash:  # slippage/taxa podem estourar o saldo por centavos
             record.update(status="REJECTED", reasons=["Saldo virtual insuficiente após taxa e slippage."])
@@ -158,11 +158,11 @@ class PaperTradingEngine:
         position = self.positions.pop(key)
         long = position.direction is Direction.LONG
         fill = self._fill_price(market_price, buy=not long)  # fechar LONG = vender
-        gross = (fill - position.entry_price) * position.quantity
+        gross = self._q((fill - position.entry_price) * position.quantity)
         if not long:
             gross = -gross
         exit_fee = self._q(fill * position.quantity * self._fee_rate)
-        self.cash += position.entry_price * position.quantity + gross - exit_fee
+        self.cash += self._q(position.entry_price * position.quantity) + gross - exit_fee
         self.fees_paid += exit_fee
         net = gross - position.entry_fee - exit_fee
         self.realized_pnl += net
@@ -176,9 +176,9 @@ class PaperTradingEngine:
             "quantity": str(position.quantity),
             "entry_price": str(position.entry_price),
             "exit_price": str(fill),
-            "gross_pnl": str(self._q(gross)),
+            "gross_pnl": str(gross),
             "fees": str(position.entry_fee + exit_fee),
-            "net_pnl": str(self._q(net)),
+            "net_pnl": str(net),
             "opened_at": position.opened_at,
             "closed_at": self._clock(),
             "close_reason": reason,

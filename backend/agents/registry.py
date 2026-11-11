@@ -44,10 +44,6 @@ ALL_PROFILES: tuple[AgentProfile, ...] = tuple(
     )
 )
 
-# Fase do projeto já implementada e verificada. Agentes cuja `activation_phase`
-# é maior do que isso ainda não têm inteligência e aparecem como OFFLINE.
-CURRENT_PHASE = 1
-
 EVENT_AGENT_STATUS_CHANGED = "agent.status_changed"
 
 
@@ -63,8 +59,9 @@ class AgentRegistry:
         self._bus = bus
         self._profiles = {p.id: p for p in profiles}
         now = _now()
-        # Todos começam OFFLINE: é o estado verdadeiro enquanto o orquestrador
-        # (FASE 5) não existe. Nada de "trabalhando" de mentira.
+        # Todos começam OFFLINE. Só passam a "Aguardando tarefa" quando o
+        # orquestrador registra um executor real para o agente (`activate`).
+        self._active: set[str] = set()
         self._state: dict[str, dict[str, Any]] = {
             p.id: {"status": AgentStatus.OFFLINE, "detail": _offline_detail(p), "since": now}
             for p in profiles
@@ -92,6 +89,20 @@ class AgentRegistry:
         )
         return view
 
+    async def activate(self, agent_id: str) -> None:
+        """O orquestrador chama isto quando o agente tem lógica real pronta para receber tarefas."""
+        self._profile(agent_id)
+        self._active.add(agent_id)
+        await self.set_status(agent_id, AgentStatus.IDLE, "Pronto para receber tarefas.")
+
+    async def deactivate_all(self) -> None:
+        for agent_id in list(self._active):
+            self._active.discard(agent_id)
+            await self.set_status(agent_id, AgentStatus.OFFLINE, "Orquestrador desligado.")
+
+    def status_of(self, agent_id: str) -> AgentStatus:
+        return self._state[self._profile(agent_id).id]["status"]
+
     def _profile(self, agent_id: str) -> AgentProfile:
         try:
             return self._profiles[agent_id]
@@ -103,7 +114,7 @@ class AgentRegistry:
         status: AgentStatus = state["status"]
         return {
             **profile.model_dump(mode="json", exclude={"system_prompt"}),
-            "implemented": profile.activation_phase <= CURRENT_PHASE,
+            "implemented": profile.id in self._active,
             "status": status.value,
             "status_label": STATUS_LABELS_PT[status],
             "status_detail": state["detail"],
@@ -112,7 +123,7 @@ class AgentRegistry:
 
 
 def _offline_detail(profile: AgentProfile) -> str:
-    return f"Inteligência do agente ainda não implementada (prevista para a FASE {profile.activation_phase})."
+    return "Orquestrador ainda não iniciou este agente."
 
 
 def _now() -> str:

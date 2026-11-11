@@ -91,7 +91,9 @@ class RiskEngine:
         price: Decimal,
         price_age_seconds: float | None,
         portfolio: PortfolioView,
+        dry_run: bool = False,
     ) -> RiskDecision:
+        """`dry_run=True` apenas avalia (pré-checagem), sem registrar a ordem como enviada."""
         L = self._limits
         reasons: list[str] = []
         checks: list[str] = []
@@ -172,7 +174,7 @@ class RiskEngine:
         )
 
         approved = not reasons
-        if approved:
+        if approved and not dry_run:
             self._recent[recent_key] = now
             self._seen_order_ids.add(order.client_order_id)
         return RiskDecision(approved, tuple(reasons), tuple(checks))

@@ -39,6 +39,7 @@ class AgentLimits(BaseModel):
     max_messages_per_meeting: int = Field(default=6, ge=1)
     task_timeout_seconds: int = Field(default=120, ge=1)
     max_model_calls_per_hour: int = Field(default=60, ge=0)
+    max_tasks_per_minute: int = Field(default=240, ge=1)
 
 
 class AgentProfile(BaseModel):
