@@ -72,6 +72,7 @@ export interface SystemStatus {
   mode: string;
   real_execution_enabled: boolean;
   admin_token_required: boolean;
+  live: { hard_cap_usdt: string; broker?: string; testnet?: boolean; usdt_free?: string; notes?: string[] } | null;
   started_at: string;
   server_time: string;
   services: Record<string, ServiceInfo>;
@@ -98,7 +99,8 @@ export interface Position {
 }
 
 export interface Portfolio {
-  simulated: true;
+  simulated: boolean;
+  warnings?: string[];
   initial_balance: string;
   cash: string;
   equity: string;

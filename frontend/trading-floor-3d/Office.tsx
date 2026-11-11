@@ -260,7 +260,7 @@ function Scene({ onSelectAgent, onOpenTab }: { onSelectAgent: (id: string) => vo
         <boxGeometry args={[7.4, 1.1, 0.08]} />
         <meshStandardMaterial color="#0a1228" emissive="#2f7bff" emissiveIntensity={0.25} />
       </mesh>
-      <Label position={[0, 2.3, -4.6]} height={0.62} lines={[{ text: `CARTEIRA VIRTUAL ${usd(portfolio?.equity)} · ${portfolio?.positions.length ?? 0} posição(ões)`, color: "#ffffff" }]} />
+      <Label position={[0, 2.3, -4.6]} height={0.62} lines={[{ text: `${system?.mode === "LIVE" ? "CARTEIRA REAL" : "CARTEIRA VIRTUAL"} ${usd(portfolio?.equity)} · ${portfolio?.positions.length ?? 0} posição(ões)`, color: "#ffffff" }]} />
 
       {/* holograma do Laboratório de Simulação */}
       <mesh ref={lab} position={[-7.6, 1.4, 9.2]} onClick={(e) => { e.stopPropagation(); onOpenTab("paper"); }}>

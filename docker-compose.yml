@@ -32,6 +32,7 @@ services:
     build:
       context: .
       dockerfile: infrastructure/backend.Dockerfile
+    env_file: .env   # todas as variáveis TMF_* do seu arquivo .env (inclusive as do modo real)
     environment:
       TMF_ENVIRONMENT: docker
       TMF_POSTGRES_HOST: postgres

@@ -17,15 +17,23 @@ Legenda: **Concluída** = implementada e verificada. **Parcial** = funciona, com
 | 10 | Risk Engine | Concluída | Oito limites imutáveis + kill switch. |
 | 11 | Sala de reuniões | Concluída | Limite de mensagens, prazo, condições de encerramento, analistas independentes. |
 | 12 | Memória e relatórios | Concluída | PostgreSQL com memória operacional e histórico financeiro separados. A carteira sobrevive a reinícios. |
-| 13 | Testes | Parcial | 102 testes automáticos de backend. Tela verificada manualmente em navegador. Sem testes automáticos de interface, sem teste de carga e sem medição de desempenho 3D em aparelhos reais. |
+| 13 | Testes | Parcial | 101 testes automáticos de backend. Tela verificada manualmente em navegador. Sem testes automáticos de interface, sem teste de carga e sem medição de desempenho 3D em aparelhos reais. |
 | 14 | Implantação 24/7 | Pendente | Dockerfiles, compose e Nginx escritos, **nunca executados** (o ambiente de construção não tem Docker ligado). Falta escolher o servidor. |
 | 15 | Análise por imagens | Pendente | Só o desenho: ver `FASE_15_ANALISE_POR_IMAGENS.md`. |
+
+## Modo real (adicionado em 11/11/2026)
+
+Execução real na Binance Spot, **desligada por padrão**. Implementada e testada contra uma
+corretora falsa que confere as assinaturas e usa as regras reais dos ativos. **Nunca foi
+executada contra a Binance de verdade** — este ambiente não tem chave nem acesso à rota de
+negociação. A primeira conferência real é o comando `python -m backend.live_trading.check`
+na sua máquina. Detalhes e riscos: `MODO_REAL.md`.
 
 ## O que foi verificado e como
 
 | Verificação | Resultado |
 |---|---|
-| `python -m pytest` (com PostgreSQL 16 real) | 102 de 102 passaram |
+| `python -m pytest` (com PostgreSQL 16 real) | 101 de 101 passaram (inclui 12 do modo real, com corretora falsa) |
 | Compilação do frontend com checagem de tipos | sem erros |
 | Sistema inteiro rodando com dados **ao vivo** da Binance Spot e PostgreSQL | preços, candles, indicadores, reuniões, sinais e operações simuladas funcionando |
 | Modo autônomo ao vivo (~20 min, candles de 1 minuto) | abriu e fechou operações simuladas por stop e por alvo; resultado ficou levemente negativo (ver aviso abaixo) |

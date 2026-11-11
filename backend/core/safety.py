@@ -1,48 +1,57 @@
-"""Travas de segurança que NÃO podem ser alteradas por configuração.
+"""Travas de segurança do modo de operação.
 
-Regras inegociáveis do projeto:
-- Execução financeira real: DESATIVADA.
-- O sistema não envia ordens reais, não transfere nem saca fundos.
+O sistema tem dois modos:
 
-Estas constantes ficam no código (e não em variáveis de ambiente) de
-propósito: nenhum agente, usuário ou arquivo .env consegue ligá-las.
+- PAPER (padrão): simulação. Nenhuma ordem sai do sistema.
+- LIVE: ordens REAIS na Binance Spot, com dinheiro de verdade.
+
+O modo LIVE só liga quando TODAS as condições abaixo são verdadeiras. Se
+alguma faltar, o backend se recusa a iniciar e explica o motivo — ele nunca
+"cai" silenciosamente de um modo para o outro.
+
+Tetos fixos no código (nenhuma configuração, agente ou rota consegue subir):
+- capital máximo que o sistema pode usar: LIVE_HARD_CAP_USDT;
+- somente mercado à vista (sem alavancagem, sem futuros, sem venda a descoberto);
+- chave de API com permissão de saque é recusada.
 """
 
 from __future__ import annotations
 
-import os
-from typing import Final
+from decimal import Decimal
+from typing import TYPE_CHECKING, Final
 
-REAL_EXECUTION_ENABLED: Final[bool] = False
-OPERATING_MODE: Final[str] = "PAPER_TRADING"
+if TYPE_CHECKING:
+    from backend.core.config import Settings
 
-# Nomes de variáveis que alguém poderia tentar usar para ligar execução real.
-_FORBIDDEN_ENV_FLAGS: Final[tuple[str, ...]] = (
-    "REAL_EXECUTION_ENABLED",
-    "ENABLE_REAL_TRADING",
-    "LIVE_TRADING",
-    "REAL_TRADING",
-)
-_TRUTHY: Final[frozenset[str]] = frozenset({"1", "true", "yes", "on", "sim"})
+MODE_PAPER: Final[str] = "PAPER_TRADING"
+MODE_LIVE: Final[str] = "LIVE"
 
+# Teto absoluto do capital real, definido pelo dono do projeto em 11/11/2026.
+LIVE_HARD_CAP_USDT: Final[Decimal] = Decimal("100")
 
-class RealExecutionForbiddenError(RuntimeError):
-    """Levantado quando algo tenta habilitar execução financeira real."""
+# Frase que o dono precisa escrever no .env para ligar o modo real.
+LIVE_CONFIRMATION_PHRASE: Final[str] = "ACEITO O RISCO DE PERDER DINHEIRO REAL"
+
+MIN_ADMIN_TOKEN_LENGTH: Final[int] = 12
 
 
-def assert_simulation_only(environ: dict[str, str] | None = None) -> None:
-    """Recusa iniciar o sistema se o ambiente pedir execução real.
+class LiveTradingConfigError(RuntimeError):
+    """O modo real foi pedido, mas alguma condição obrigatória não foi cumprida."""
 
-    Em vez de ignorar silenciosamente o pedido, o sistema para com um erro
-    claro (regra: "não esconda erros").
-    """
-    env = os.environ if environ is None else environ
-    for flag in _FORBIDDEN_ENV_FLAGS:
-        if env.get(flag, "").strip().lower() in _TRUTHY:
-            raise RealExecutionForbiddenError(
-                f"A variável de ambiente {flag} tenta habilitar execução real. "
-                "O TRADING MOHAMED FLOOR opera somente em simulação "
-                "(Paper Trading). Remova essa variável para iniciar."
-            )
-    if REAL_EXECUTION_ENABLED:  # pragma: no cover - proteção contra edição do código
-        raise RealExecutionForbiddenError("REAL_EXECUTION_ENABLED deve ser False.")
+
+def resolve_mode(settings: "Settings") -> str:
+    """Decide o modo de operação. Levanta erro se o modo real foi pedido de forma incompleta."""
+    if not settings.live_trading_enabled:
+        return MODE_PAPER
+    problems: list[str] = []
+    if settings.live_confirmation.strip() != LIVE_CONFIRMATION_PHRASE:
+        problems.append(f'TMF_LIVE_CONFIRMATION deve ser exatamente "{LIVE_CONFIRMATION_PHRASE}".')
+    if not settings.binance_api_key or not settings.binance_api_secret:
+        problems.append("TMF_BINANCE_API_KEY e TMF_BINANCE_API_SECRET são obrigatórios.")
+    if not (Decimal("0") < settings.live_max_capital_usdt <= LIVE_HARD_CAP_USDT):
+        problems.append(f"TMF_LIVE_MAX_CAPITAL_USDT deve ser maior que 0 e no máximo {LIVE_HARD_CAP_USDT}.")
+    if len(settings.admin_token) < MIN_ADMIN_TOKEN_LENGTH:
+        problems.append(f"TMF_ADMIN_TOKEN (senha do painel) é obrigatório no modo real, com ao menos {MIN_ADMIN_TOKEN_LENGTH} caracteres.")
+    if problems:
+        raise LiveTradingConfigError("Modo REAL pedido, mas não liberado:\n- " + "\n- ".join(problems))
+    return MODE_LIVE

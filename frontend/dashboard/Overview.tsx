@@ -2,19 +2,20 @@
 
 import { Card, Empty, Stat } from "@/components/ui";
 import { StatusDot } from "@/components/StatusDot";
-import { useFloor } from "@/lib/floor";
+import { useFloor, useLive } from "@/lib/floor";
 import { clock, pct, signed, tone, usd } from "@/lib/format";
 
 const SERVICE_NAMES: Record<string, string> = { backend: "Backend (API)", postgres: "PostgreSQL", redis: "Redis", storage: "Memória" };
 
 export function Overview() {
   const { system, portfolio, agents, feed, scan } = useFloor();
+  const live = useLive();
   const busy = agents.filter((a) => !["idle", "offline"].includes(a.status)).length;
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Patrimônio virtual" value={usd(portfolio?.equity)} hint={`Inicial ${usd(portfolio?.initial_balance)}`} />
-        <Stat label="Resultado do dia (simulado)" value={signed(portfolio?.day_pnl)} className={tone(portfolio?.day_pnl)} />
+        <Stat label={live ? "Capital alocado (REAL)" : "Patrimônio virtual"} value={usd(portfolio?.equity)} hint={`Inicial ${usd(portfolio?.initial_balance)}`} />
+        <Stat label={live ? "Resultado do dia (REAL)" : "Resultado do dia (simulado)"} value={signed(portfolio?.day_pnl)} className={tone(portfolio?.day_pnl)} />
         <Stat label="Posições abertas" value={portfolio?.positions.length ?? "—"} hint={`Exposição ${usd(portfolio?.exposure)}`} />
         <Stat label="Agentes ocupados" value={`${busy} / ${agents.length}`} hint={`Fila: ${system?.orchestrator.queue_size ?? "—"}`} />
       </div>
@@ -50,7 +51,7 @@ export function Overview() {
           ) : <Empty>Sem informações.</Empty>}
         </Card>
 
-        <Card title="Modo autônomo (somente simulação)">
+        <Card title={live ? "Modo autônomo — OPERA COM DINHEIRO REAL" : "Modo autônomo (somente simulação)"}>
           {system ? (
             <div className="space-y-2 text-sm">
               <p className="flex items-center gap-2">

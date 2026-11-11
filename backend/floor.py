@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import logging
 from collections import deque
 from decimal import Decimal
 from typing import Any
 
 from backend.agents.registry import AgentRegistry
+from backend.core import safety
 from backend.core.config import Settings
 from backend.events.bus import Event, EventBus
 from backend.market_data.base import MarketDataProvider
@@ -48,7 +50,21 @@ class Floor:
                 risk_per_trade_pct=s.risk_per_trade_pct,
             )
         )
-        self.paper = self._new_paper(s.paper_initial_balance_usd)
+        # Modo de operação: simulação (padrão) ou REAL. `resolve_mode` levanta erro se o
+        # modo real foi pedido sem todas as condições obrigatórias.
+        self.mode = safety.resolve_mode(s)
+        self.live_info: dict[str, Any] = {}
+        if self.mode == safety.MODE_LIVE:
+            from backend.live_trading.client import BinanceTradeClient
+            from backend.live_trading.engine import LiveTradingEngine
+
+            self.trade_client = BinanceTradeClient(s.binance_api_key, s.binance_api_secret, s.binance_trade_rest)
+            self.paper = LiveTradingEngine(s.live_max_capital_usdt, self.risk, self.trade_client)
+            self.paper.on_trade = self._record_trade
+            self.portfolio_key = "live"
+        else:
+            self.paper = self._new_paper(s.paper_initial_balance_usd)
+            self.portfolio_key = "current"
         if providers is None:
             providers = (
                 [
@@ -91,7 +107,9 @@ class Floor:
                 logger.error("PostgreSQL indisponível; usando memória volátil", extra={"error": str(exc)})
                 self.storage_detail = f"PostgreSQL configurado mas inacessível ({type(exc).__name__}). Usando memória volátil!"
             self.ctx.store = self.store
-        saved = await self.store.get("portfolio", "current")
+        if self.mode == safety.MODE_LIVE:
+            await self._live_preflight()
+        saved = await self.store.get("portfolio", self.portfolio_key)
         if saved:
             self.paper.restore(saved)
         saved_autonomy = await self.store.get("settings", "autonomy")
@@ -131,20 +149,46 @@ class Floor:
                     logger.exception("Falha ao gravar evento no histórico")
 
     # ------------------------------------------------------------------ carteira
+    async def _live_preflight(self) -> None:
+        """Conferências obrigatórias antes de operar com dinheiro real. Qualquer falha impede o início."""
+        client = self.trade_client
+        await client.sync_time()
+        info: dict[str, Any] = {"broker": "Binance Spot", "testnet": client.is_testnet, "notes": []}
+        if not client.is_testnet:
+            restrictions = await client.api_restrictions()
+            if restrictions.get("enableWithdrawals"):
+                raise safety.LiveTradingConfigError(
+                    "A chave de API tem permissão de SAQUE. Crie outra chave só com leitura e negociação à vista."
+                )
+            if not restrictions.get("enableSpotAndMarginTrading"):
+                raise safety.LiveTradingConfigError("A chave de API não tem permissão de negociação à vista.")
+            if not restrictions.get("ipRestrict"):
+                info["notes"].append("A chave de API não está restrita por IP. Recomenda-se restringir ao IP do servidor.")
+        account = await client.account()
+        if not account.get("canTrade", False):
+            raise safety.LiveTradingConfigError("A conta Binance não está habilitada para negociar.")
+        free = next((b["free"] for b in account["balances"] if b["asset"] == "USDT"), "0")
+        info["usdt_free"] = free
+        if Decimal(free) < self.settings.live_max_capital_usdt:
+            info["notes"].append(f"Saldo livre de {free} USDT é menor que o capital alocado ({self.settings.live_max_capital_usdt}).")
+        self.live_info = info
+
     async def _persist_portfolio(self) -> None:
+        if self.mode == safety.MODE_LIVE:
+            await self.paper.reconcile()  # confere na corretora o stop de cada posição
         self.paper.record_equity_point()
-        await self.store.put("portfolio", "current", self.paper.snapshot())
+        await self.store.put("portfolio", self.portfolio_key, self.paper.snapshot())
 
     async def _record_order(self, record: dict[str, Any]) -> None:
         await self.store.append("orders", record)
-        await self.store.put("portfolio", "current", self.paper.snapshot())
+        await self.store.put("portfolio", self.portfolio_key, self.paper.snapshot())
         kind = "paper.order_filled" if record["status"] == "FILLED" else "paper.order_rejected"
         await self.bus.publish(Event(kind, {"order": record}, trace_id=record["trace_id"]))
         await self._publish_portfolio()
 
     async def _record_trade(self, trade: dict[str, Any]) -> None:
         await self.store.append("trades", trade)
-        await self.store.put("portfolio", "current", self.paper.snapshot())
+        await self.store.put("portfolio", self.portfolio_key, self.paper.snapshot())
         await self.bus.publish(Event("paper.position_closed", {"trade": trade}, trace_id=trade["trace_id"]))
         await self._publish_portfolio()
 
@@ -153,6 +197,8 @@ class Floor:
 
     async def _on_price(self, market: str, symbol: str, price: float, _received: float) -> None:
         trade = self.paper.on_price(market, symbol, Decimal(str(price)))
+        if inspect.isawaitable(trade):
+            trade = await trade
         if trade is not None:
             await self._record_trade(trade)
 
@@ -165,13 +211,17 @@ class Floor:
         if quote is None:
             raise RuntimeError("Sem preço disponível para fechar a posição.")
         trade = self.paper.close_position(key, Decimal(str(quote["price"])), "manual")
+        if inspect.isawaitable(trade):
+            trade = await trade
         await self._record_trade(trade)
         return trade
 
     async def reset_paper(self, balance: Decimal) -> dict[str, Any]:
+        if self.mode == safety.MODE_LIVE:
+            raise PermissionError("No modo real a carteira não pode ser reiniciada pelo painel.")
         self.paper = self._new_paper(balance)
         self.ctx.paper = self.paper
-        await self.store.put("portfolio", "current", self.paper.snapshot())
+        await self.store.put("portfolio", self.portfolio_key, self.paper.snapshot())
         await self.bus.publish(Event("paper.reset", {"initial_balance": str(balance)}))
         await self._publish_portfolio()
         return self.paper.summary()

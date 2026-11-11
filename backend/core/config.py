@@ -53,6 +53,15 @@ class Settings(BaseSettings):
     history_limit: int = Field(default=500, ge=100, le=1000)
     stale_after_seconds: float = Field(default=15.0, gt=0)
 
+    # --- MODO REAL (dinheiro de verdade na Binance Spot). Desligado por padrão.
+    # Só liga com todas as condições de `backend.core.safety.resolve_mode`.
+    live_trading_enabled: bool = False
+    live_confirmation: str = ""
+    binance_api_key: str = Field(default="", repr=False)
+    binance_api_secret: str = Field(default="", repr=False)
+    binance_trade_rest: str = "https://api.binance.com"   # testnet: https://testnet.binance.vision
+    live_max_capital_usdt: Decimal = Field(default=Decimal("100"), gt=0)
+
     # --- paper trading (simulação)
     paper_initial_balance_usd: Decimal = Field(default=Decimal("300"), gt=0)
     paper_fee_rate: Decimal = Field(default=Decimal("0.001"), ge=0, lt=Decimal("0.1"))

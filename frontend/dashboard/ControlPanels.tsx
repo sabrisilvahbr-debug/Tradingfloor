@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button, Card, Empty, Table } from "@/components/ui";
-import { useApi, useFloor } from "@/lib/floor";
+import { useApi, useFloor, useLive } from "@/lib/floor";
 import { dateTime, pct } from "@/lib/format";
 import type { FloorEvent } from "@/lib/types";
 
@@ -33,7 +33,7 @@ export function RiskPanel() {
             <Button onClick={() => act("/api/v1/risk/kill-switch", { active: false }, "Kill switch desligado.")}>Desligar kill switch</Button>
           ) : confirming ? (
             <>
-              <Button kind="danger" onClick={async () => { await act("/api/v1/risk/kill-switch", { active: true, reason: "Acionado pelo usuário no painel." }, "Kill switch ATIVADO: novas operações simuladas bloqueadas."); setConfirming(false); }}>Confirmar: bloquear tudo</Button>
+              <Button kind="danger" onClick={async () => { await act("/api/v1/risk/kill-switch", { active: true, reason: "Acionado pelo usuário no painel." }, "Kill switch ATIVADO: novas operações bloqueadas."); setConfirming(false); }}>Confirmar: bloquear tudo</Button>
               <Button onClick={() => setConfirming(false)}>Cancelar</Button>
             </>
           ) : (
@@ -41,7 +41,7 @@ export function RiskPanel() {
           )}
         </div>
         <p className="mt-3 text-sm text-mute">
-          Bloqueia toda nova operação simulada e o modo autônomo. Stop-loss, alvo e fechamento manual das posições já abertas continuam funcionando.
+          Bloqueia toda nova operação e o modo autônomo. Stop-loss, alvo e fechamento manual das posições já abertas continuam funcionando.
           {risk.kill_switch_reason && <> Motivo registrado: {risk.kill_switch_reason}</>}
         </p>
       </Card>
@@ -108,6 +108,7 @@ export function SettingsPanel() {
   const [draft, setDraft] = useState(token);
   const [balance, setBalance] = useState("300");
   const [confirming, setConfirming] = useState(false);
+  const live = useLive();
   return (
     <div className="space-y-4">
       <Card title="Senha de administrador">
@@ -122,7 +123,7 @@ export function SettingsPanel() {
           <Button kind="primary" onClick={() => setToken(draft)}>Salvar neste navegador</Button>
         </div>
       </Card>
-      <Card title="Carteira virtual">
+      {!live && <Card title="Carteira virtual">
         <p className="mb-2 text-sm text-mute">Reinicia a simulação com um novo saldo virtual. Saldo inicial atual: US$ {portfolio?.initial_balance ?? "—"}. Posições e histórico da carteira atual são descartados.</p>
         <div className="flex flex-wrap gap-2">
           <input type="number" min="1" aria-label="Novo saldo virtual" value={balance} onChange={(e) => setBalance(e.target.value)} className="w-40 rounded-lg border border-line bg-ink px-3 py-2 font-mono text-sm" />
@@ -133,13 +134,13 @@ export function SettingsPanel() {
             </>
           ) : <Button onClick={() => setConfirming(true)}>Reiniciar carteira virtual</Button>}
         </div>
-      </Card>
+      </Card>}
       <Card title="Sistema">
         {system ? (
           <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
             {[
-              ["Versão", system.version], ["Ambiente", system.environment], ["Modo", "Paper Trading (simulação)"],
-              ["Execução real", system.real_execution_enabled ? "ATIVA" : "Desativada (fixo no código)"],
+              ["Versão", system.version], ["Ambiente", system.environment], ["Modo", live ? "REAL — Binance Spot" : "Paper Trading (simulação)"],
+              ["Execução real", live ? `ATIVA (teto fixo de ${system.live?.hard_cap_usdt} USDT)` : "Desativada"],
               ["Ligado desde", new Date(system.started_at).toLocaleString("pt-BR")], ["Modelo de IA", system.ai_model.detail],
             ].map(([k, v]) => <div key={k} className="flex justify-between gap-3 border-b border-line/50 py-1"><dt className="text-mute">{k}</dt><dd className="text-right">{v}</dd></div>)}
           </dl>

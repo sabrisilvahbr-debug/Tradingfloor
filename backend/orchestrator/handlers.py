@@ -6,6 +6,7 @@ contas ficam nos motores determinísticos; aqui só há a "cola".
 
 from __future__ import annotations
 
+import inspect
 import time
 from dataclasses import dataclass
 from decimal import Decimal
@@ -135,7 +136,7 @@ async def risk_manager(task: Task, ctx: Ctx) -> dict[str, Any]:
 
 
 async def execution_agent(task: Task, ctx: Ctx) -> dict[str, Any]:
-    """Única porta de envio de ordens — e ela só leva ao Paper Trading Engine."""
+    """Única porta de envio de ordens. Leva ao motor configurado: simulação (padrão) ou Binance real."""
     p = task.payload
     quote = ctx.market.get_price(p["market"], p["symbol"])
     fresh = quote is not None and ctx.market.is_fresh(p["market"], p["symbol"])
@@ -146,6 +147,8 @@ async def execution_agent(task: Task, ctx: Ctx) -> dict[str, Any]:
     price = Decimal(str(quote["price"])) if quote else Decimal("0")
     # O Risk Engine é reavaliado DENTRO do motor, com o preço real do momento.
     record = ctx.paper.submit_order(order, price, quote["age_seconds"] if fresh else None)
+    if inspect.isawaitable(record):  # o motor real é assíncrono (fala com a corretora)
+        record = await record
     await ctx.record_order(record)
     return record
 

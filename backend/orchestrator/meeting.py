@@ -170,9 +170,10 @@ class MeetingRoom:
         })
         meeting["order"] = order
         if order["status"] == "FILLED":
-            text = f"Ordem SIMULADA preenchida: {order['side']} {order['quantity']} {symbol} a {order['fill_price']}."
+            kind = "SIMULADA" if order["simulated"] else "REAL"
+            text = f"Ordem {kind} preenchida: {order['side']} {order['quantity']} {symbol} a {order['fill_price']}."
         else:
-            text = "Ordem simulada REJEITADA pelo Risk Engine: " + " ".join(order["reasons"])
+            text = "Ordem REJEITADA: " + " ".join(order["reasons"])
         await self._say(meeting, "execution_agent", "execução", text)
         meeting["outcome"] += " " + text
 

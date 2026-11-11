@@ -77,7 +77,7 @@ export function SignalsPanel({ asset }: { asset: Asset }) {
           <Button kind="primary" onClick={analyze} disabled={busy || link !== "connected"} className="px-6 py-3 text-base">
             {busy ? "ANALISANDO…" : "ANALISAR AGORA"}
           </Button>
-          <p className="text-sm text-mute">Ativo selecionado: <b className="text-white">{asset.symbol}</b>{asset.interval ? ` (${asset.interval})` : " (temporalidade principal)"}. Troque o ativo na aba Gráfico. O sinal sob demanda nunca executa ordens.</p>
+          <p className="text-sm text-mute">Ativo selecionado: <b className="text-white">{asset.symbol}</b>{asset.interval ? ` (${asset.interval})` : " (temporalidade principal)"}. Troque o ativo na aba Gráfico. O sinal sob demanda nunca executa ordens, em nenhum modo.</p>
         </div>
         {result && (
           <div className="mt-4 border-t border-line pt-4">

@@ -2,31 +2,32 @@
 
 import { LineChart } from "@/charts/LineChart";
 import { Button, Card, Empty, SimBadge, Stat, Table } from "@/components/ui";
-import { useApi, useFloor } from "@/lib/floor";
+import { useApi, useFloor, useLive } from "@/lib/floor";
 import { dateTime, num, pct, price, signed, tone, usd } from "@/lib/format";
 import type { Order, Trade } from "@/lib/types";
 
 export function PaperPanel() {
   const { portfolio: p, act, ticks } = useFloor();
+  const live = useLive();
   const equity = useApi<{ points: { time: number; equity: string }[] }>("/api/v1/paper/equity", 15000, ticks.paper);
   const orders = useApi<{ orders: Order[] }>("/api/v1/paper/orders?limit=30", 0, ticks.paper);
-  if (!p) return <Empty>Carteira virtual indisponível: o backend não respondeu.</Empty>;
+  if (!p) return <Empty>Carteira indisponível: o backend não respondeu.</Empty>;
   const points = (equity.data?.points ?? []).map((pt) => ({ x: pt.time, y: Number(pt.equity) }));
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Patrimônio virtual" value={usd(p.equity)} hint={`Retorno ${signed(p.return_pct)}%`} />
-        <Stat label="Saldo livre" value={usd(p.cash)} hint={`Exposição ${usd(p.exposure)}`} />
-        <Stat label="Lucro realizado" value={signed(p.realized_pnl)} className={tone(p.realized_pnl)} hint={`Taxas simuladas ${usd(p.fees_paid, 4)}`} />
+        <Stat label={live ? "Capital alocado (REAL)" : "Patrimônio virtual"} value={usd(p.equity)} hint={`Retorno ${signed(p.return_pct)}%`} />
+        <Stat label={live ? "Livre no orçamento" : "Saldo livre"} value={usd(p.cash)} hint={`Exposição ${usd(p.exposure)}`} />
+        <Stat label="Lucro realizado" value={signed(p.realized_pnl)} className={tone(p.realized_pnl)} hint={`Taxas ${live ? "pagas" : "simuladas"} ${usd(p.fees_paid, 4)}`} />
         <Stat label="Lucro não realizado" value={signed(p.unrealized_pnl, 4)} className={tone(p.unrealized_pnl)} />
         <Stat label="Drawdown atual" value={pct(p.drawdown_pct)} hint={`Máximo ${pct(p.max_drawdown_pct)}`} />
         <Stat label="Resultado do dia" value={signed(p.day_pnl)} className={tone(p.day_pnl)} />
         <Stat label="Operações encerradas" value={p.closed_trades} hint={p.win_rate_pct ? `Acerto ${pct(p.win_rate_pct, 1)}` : "Sem histórico"} />
-        <Stat label="Custos simulados" value={`${pct(Number(p.fee_rate) * 100, 2)} + ${pct(Number(p.slippage_rate) * 100, 3)}`} hint="Taxa + slippage por lado" />
+        {live ? <Stat label="Corretora" value="Binance Spot" hint="Custos reais cobrados pela corretora" /> : <Stat label="Custos simulados" value={`${pct(Number(p.fee_rate) * 100, 2)} + ${pct(Number(p.slippage_rate) * 100, 3)}`} hint="Taxa + slippage por lado" />}
       </div>
 
       <Card title="Posições abertas" right={<SimBadge />}>
-        {p.positions.length === 0 ? <Empty>Nenhuma posição simulada aberta.</Empty> : (
+        {p.positions.length === 0 ? <Empty>Nenhuma posição aberta.</Empty> : (
           <Table head={["Ativo", "Lado", "Qtd.", "Entrada", "Atual", "Stop", "Alvo", "Resultado", ""]}>
             {p.positions.map((pos) => (
               <tr key={`${pos.market}:${pos.symbol}`}>
@@ -39,7 +40,7 @@ export function PaperPanel() {
                 <td className="px-2 py-2 font-mono text-emerald-300">{price(pos.take_profit)}</td>
                 <td className={`px-2 py-2 font-mono ${tone(pos.unrealized_pnl)}`}>{signed(pos.unrealized_pnl, 4)}</td>
                 <td className="px-2 py-2 text-right">
-                  <Button onClick={() => act("/api/v1/paper/close", { market: pos.market, symbol: pos.symbol }, `Posição simulada em ${pos.symbol} fechada.`)}>Fechar</Button>
+                  <Button onClick={() => act("/api/v1/paper/close", { market: pos.market, symbol: pos.symbol }, `Posição em ${pos.symbol} fechada.`)}>Fechar</Button>
                 </td>
               </tr>
             ))}
@@ -51,8 +52,8 @@ export function PaperPanel() {
         {points.length < 2 ? <Empty>Ainda não há pontos suficientes.</Empty> : <LineChart points={points} baseline={Number(p.initial_balance)} />}
       </Card>
 
-      <Card title="Ordens simuladas recentes" right={<SimBadge />}>
-        {!orders.data || orders.data.orders.length === 0 ? <Empty>Nenhuma ordem simulada ainda.</Empty> : (
+      <Card title={live ? "Ordens REAIS recentes" : "Ordens simuladas recentes"} right={<SimBadge />}>
+        {!orders.data || orders.data.orders.length === 0 ? <Empty>Nenhuma ordem ainda.</Empty> : (
           <Table head={["Horário", "Ativo", "Lado", "Qtd.", "Situação", "Preço / motivo"]}>
             {orders.data.orders.map((o) => (
               <tr key={o.order_id}>
@@ -78,7 +79,7 @@ export function HistoryPanel() {
   const trades = useApi<{ trades: Trade[] }>("/api/v1/paper/trades?limit=200", 0, ticks.paper);
   return (
     <Card title="Histórico de operações encerradas" right={<SimBadge />}>
-      {!trades.data || trades.data.trades.length === 0 ? <Empty>Nenhuma operação simulada encerrada ainda.</Empty> : (
+      {!trades.data || trades.data.trades.length === 0 ? <Empty>Nenhuma operação encerrada ainda.</Empty> : (
         <Table head={["Abertura", "Fechamento", "Ativo", "Lado", "Qtd.", "Entrada", "Saída", "Taxas", "Resultado líquido", "Motivo"]}>
           {trades.data.trades.map((t) => (
             <tr key={t.trade_id}>

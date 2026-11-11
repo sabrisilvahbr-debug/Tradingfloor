@@ -32,6 +32,7 @@ MAX_CURVE_POINTS = 5000
 
 
 class PaperTradingEngine:
+    simulated = True
     def __init__(
         self,
         initial_balance: Decimal,

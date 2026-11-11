@@ -13,7 +13,7 @@ import { Overview } from "@/dashboard/Overview";
 import { HistoryPanel, PaperPanel } from "@/dashboard/PaperPanel";
 import { ReportsPanel } from "@/dashboard/ReportsPanel";
 import { SignalsPanel } from "@/dashboard/SignalsPanel";
-import { FloorProvider, useFloor } from "@/lib/floor";
+import { FloorProvider, useFloor, useLive } from "@/lib/floor";
 import type { LinkState, Tab, View } from "@/lib/types";
 
 // O escritório 3D só é baixado quando o usuário abre essa visão (carregamento sob demanda).
@@ -33,7 +33,8 @@ const TABS: [Tab, string][] = [
 const VIEWS: [View, string][] = [["office", "Escritório 3D"], ["dashboard", "Dashboard 2D"], ["hybrid", "Visão híbrida"]];
 
 function Floor() {
-  const { link, system, agents, error, notice, dismiss, act } = useFloor();
+  const { link, system, agents, portfolio, error, notice, dismiss, act } = useFloor();
+  const live = useLive();
   const [view, setView] = useState<View>("hybrid");
   const [tab, setTab] = useState<Tab>("visao");
   const [asset, setAsset] = useState<Asset>({ market: "binance_spot", symbol: "BTCUSDT", interval: "" });
@@ -55,8 +56,17 @@ function Floor() {
           <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">TRADING MOHAMED FLOOR</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs font-medium">
-          <span className="rounded-full border border-electric/50 bg-electric/10 px-3 py-1 text-holo">PAPER TRADING (SIMULAÇÃO)</span>
-          <span className="rounded-full border border-red-500/40 bg-red-500/10 px-3 py-1 text-red-300">EXECUÇÃO REAL: {system?.real_execution_enabled ? "ATIVA" : "DESATIVADA"}</span>
+          {live ? (
+            <>
+              <span className="rounded-full border border-red-500 bg-red-600 px-3 py-1 font-bold text-white">DINHEIRO REAL — BINANCE SPOT{system?.live?.testnet ? " (TESTNET)" : ""}</span>
+              <span className="rounded-full border border-red-500/40 bg-red-500/10 px-3 py-1 text-red-300">TETO: {system?.live?.hard_cap_usdt} USDT</span>
+            </>
+          ) : (
+            <>
+              <span className="rounded-full border border-electric/50 bg-electric/10 px-3 py-1 text-holo">PAPER TRADING (SIMULAÇÃO)</span>
+              <span className="rounded-full border border-red-500/40 bg-red-500/10 px-3 py-1 text-red-300">EXECUÇÃO REAL: {system ? "DESATIVADA" : "—"}</span>
+            </>
+          )}
           <span className="flex items-center gap-2 rounded-full border border-line px-3 py-1"><StatusDot state={link} />{LINK_LABELS[link]}</span>
         </div>
       </header>
@@ -69,7 +79,7 @@ function Floor() {
           ))}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button disabled={!system} onClick={() => act("/api/v1/autonomy", { enabled: !autonomy }, autonomy ? "Modo autônomo pausado: nenhuma nova operação simulada será aberta." : "Modo autônomo retomado (somente simulação).")}>
+          <Button disabled={!system} onClick={() => act("/api/v1/autonomy", { enabled: !autonomy }, autonomy ? "Modo autônomo pausado: nenhuma nova operação será aberta." : live ? "Modo autônomo retomado: o sistema voltará a abrir operações REAIS." : "Modo autônomo retomado (somente simulação).")}>
             {autonomy ? "⏸ Pausar autonomia" : "▶ Retomar autonomia"}
           </Button>
           <Button kind={killSwitch ? "danger" : "ghost"} onClick={() => openTab("risco")}>{killSwitch ? "KILL SWITCH ATIVO" : "Kill switch"}</Button>
@@ -83,6 +93,18 @@ function Floor() {
         </div>
       )}
 
+      {live && (
+        <div role="alert" className="mt-4 rounded-xl border border-red-500 bg-red-600/15 p-3 text-sm text-red-100">
+          <b>MODO REAL.</b> As ordens movimentam dinheiro de verdade na sua conta Binance. Você pode perder parte ou todo o capital alocado
+          ({portfolio?.initial_balance ?? "—"} USDT). Saldo livre na conta ao iniciar: {system?.live?.usdt_free ?? "—"} USDT.
+          {[...(system?.live?.notes ?? []), ...(portfolio?.warnings ?? [])].length > 0 && (
+            <ul className="mt-2 list-disc pl-5 text-amber-200">
+              {[...(system?.live?.notes ?? []), ...(portfolio?.warnings ?? [])].map((w, i) => <li key={i}>{w}</li>)}
+            </ul>
+          )}
+        </div>
+      )}
+
       {view !== "dashboard" && (
         <div className="mt-4">
           <Office onSelectAgent={setSelected} onOpenTab={openTab} height={view === "office" ? "72vh" : "46vh"} />
@@ -93,8 +115,8 @@ function Floor() {
         <>
           <nav aria-label="Seções do dashboard" className="mt-4 flex gap-1 overflow-x-auto border-b border-line pb-px text-sm">
             {TABS.map(([id, label]) => (
-              <button key={id} type="button" onClick={() => setTab(id)}
-                className={`shrink-0 rounded-t-lg px-3 py-2 font-medium transition ${tab === id ? "border-b-2 border-electric text-white" : "text-mute hover:text-white"}`}>{label}</button>
+              <button key={id} type="button" onClick={() => setTab(id)} data-tab={id}
+                className={`shrink-0 rounded-t-lg px-3 py-2 font-medium transition ${tab === id ? "border-b-2 border-electric text-white" : "text-mute hover:text-white"}`}>{live && id === "paper" ? "Carteira real" : label}</button>
             ))}
           </nav>
           <div className="mt-4">
@@ -124,8 +146,10 @@ function Floor() {
       )}
 
       <footer className="mt-10 border-t border-line pt-4 text-xs text-mute">
-        Ambiente exclusivamente de simulação. Nenhuma ordem real é enviada. Sinais e resultados simulados não são recomendação de investimento
-        nem garantem rentabilidade. {system && <>Versão {system.version}.</>}
+        {live
+          ? "MODO REAL: ordens de verdade na Binance Spot, limitadas ao capital alocado. Risco de perda."
+          : "Ambiente de simulação. Nenhuma ordem real é enviada."}{" "}
+        Sinais e resultados não são recomendação de investimento nem garantem rentabilidade. {system && <>Versão {system.version}.</>}
       </footer>
     </main>
   );

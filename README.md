@@ -3,9 +3,10 @@
 Empresa virtual de trading operada por dez agentes, com escritório 3D, dashboard 2D,
 dados de mercado ao vivo e operações **simuladas**.
 
-> **Somente simulação (Paper Trading).** Este sistema não envia ordens reais, não usa chave
-> de corretora, não transfere nem saca dinheiro, e **não promete rentabilidade**. Os sinais
-> não são recomendação de investimento.
+> **Simulação por padrão (Paper Trading).** Sem configuração extra, nenhuma ordem real é
+> enviada. Existe um **modo real** (Binance Spot, teto de 100 USDT) que só liga com várias
+> confirmações — leia [`docs/MODO_REAL.md`](docs/MODO_REAL.md). O sistema **não promete
+> rentabilidade** e os sinais não são recomendação de investimento.
 
 Situação de cada fase, o que foi verificado e o que falta: [`docs/FASES.md`](docs/FASES.md).
 
@@ -70,6 +71,7 @@ python -m pytest
 | `backend/signal_engine` | Regra de decisão COMPRA/VENDA/NEUTRO e backtests |
 | `backend/paper_trading` | Carteira virtual e execução simulada |
 | `backend/risk_engine` | Limites de risco e kill switch |
+| `backend/live_trading` | Execução REAL na Binance Spot (desligada por padrão) |
 | `backend/memory` | Gravação no PostgreSQL |
 | `backend/core` | Configuração, logs e travas de segurança |
 | `database/` | Estrutura do banco |

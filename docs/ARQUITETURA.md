@@ -16,10 +16,11 @@ Navegador ──► Nginx ──► Frontend (Next.js): escritório 3D + dashboa
 
 1. **Lógica financeira fora de modelos generativos.** Preços, indicadores, decisão, risco e
    execução simulada são código determinístico e testado.
-2. **Execução real impossível por construção.** `REAL_EXECUTION_ENABLED = False` fixo no código;
-   o backend se recusa a iniciar se o ambiente pedir execução real; o conector de mercado só faz
-   requisições de leitura, sem chave de API; um teste varre o código procurando rotas de ordem,
-   conta ou saque.
+2. **Simulação por padrão; modo real isolado e com teto.** O modo real só liga com todas as
+   condições de `backend/core/safety.py`; se alguma faltar, o backend se recusa a iniciar. As
+   rotas de ordem e conta existem apenas em `backend/live_trading`; não há código de saque,
+   transferência, margem ou futuros em lugar nenhum (um teste varre o código). O teto de capital
+   real é uma constante do código.
 3. **Risk Engine incontornável.** Toda abertura passa por ele *dentro* do Paper Trading Engine.
    Os limites são imutáveis após a inicialização; não há rota nem ferramenta para alterá-los.
 4. **A tela mostra só estado verdadeiro.** Estados dos agentes vêm de `AgentRegistry` por

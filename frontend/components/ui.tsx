@@ -1,4 +1,7 @@
+"use client";
+
 import type { ReactNode } from "react";
+import { useLive } from "@/lib/floor";
 
 export function Card({ title, right, children, className = "" }: { title?: string; right?: ReactNode; children: ReactNode; className?: string }) {
   return (
@@ -54,6 +57,8 @@ export function ErrorNote({ children }: { children: ReactNode }) {
 }
 
 export function SimBadge() {
+  const live = useLive();
+  if (live) return <span className="rounded-full border border-red-500 bg-red-600 px-2 py-0.5 text-[10px] font-bold tracking-wide text-white">DINHEIRO REAL</span>;
   return <span className="rounded-full border border-electric/50 bg-electric/10 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-holo">SIMULAÇÃO</span>;
 }
 

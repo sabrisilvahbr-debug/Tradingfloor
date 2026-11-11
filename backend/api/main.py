@@ -1,8 +1,8 @@
 """Aplicação FastAPI: rotas REST e WebSocket do TRADING MOHAMED FLOOR.
 
-Rotas GET são de leitura. Rotas POST são ações do USUÁRIO sobre a simulação
-(pedir análise, pausar autonomia, kill switch, fechar posição simulada...).
-Não existe rota que envie ordem real, nem rota para alterar limites de risco.
+Rotas GET são de leitura. Rotas POST são ações do USUÁRIO (pedir análise,
+pausar autonomia, kill switch, fechar posição...). Não existe rota para enviar
+uma ordem arbitrária, nem rota para alterar limites de risco ou o modo de operação.
 """
 
 from __future__ import annotations
@@ -65,9 +65,8 @@ def create_app(settings: Settings | None = None, providers: list[MarketDataProvi
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         configure_logging(settings.log_level)
-        safety.assert_simulation_only()  # recusa iniciar se pedirem execução real
         await floor.start()
-        logger.info("Backend iniciado", extra={"mode": safety.OPERATING_MODE, "real_execution": safety.REAL_EXECUTION_ENABLED})
+        logger.info("Backend iniciado", extra={"mode": floor.mode, "real_execution": floor.mode == safety.MODE_LIVE})
         try:
             yield
         finally:
@@ -113,8 +112,9 @@ def create_app(settings: Settings | None = None, providers: list[MarketDataProvi
             "app": settings.app_name,
             "version": __version__,
             "environment": settings.environment,
-            "mode": safety.OPERATING_MODE,
-            "real_execution_enabled": safety.REAL_EXECUTION_ENABLED,
+            "mode": floor.mode,
+            "real_execution_enabled": floor.mode == safety.MODE_LIVE,
+            "live": {"hard_cap_usdt": str(safety.LIVE_HARD_CAP_USDT), **floor.live_info} if floor.mode == safety.MODE_LIVE else None,
             "admin_token_required": bool(settings.admin_token),
             "started_at": app.state.started_at.isoformat(),
             "server_time": datetime.now(timezone.utc).isoformat(),
@@ -231,15 +231,15 @@ def create_app(settings: Settings | None = None, providers: list[MarketDataProvi
 
     @app.get("/api/v1/paper/trades")
     async def trades(limit: int = 200) -> dict:
-        return {"simulated": True, "trades": floor.paper.trades[-max(1, min(limit, 2000)):][::-1]}
+        return {"simulated": floor.paper.simulated, "trades": floor.paper.trades[-max(1, min(limit, 2000)):][::-1]}
 
     @app.get("/api/v1/paper/orders")
     async def orders(limit: int = 200) -> dict:
-        return {"simulated": True, "orders": floor.paper.orders[-max(1, min(limit, 500)):][::-1]}
+        return {"simulated": floor.paper.simulated, "orders": floor.paper.orders[-max(1, min(limit, 500)):][::-1]}
 
     @app.get("/api/v1/paper/equity")
     async def equity() -> dict:
-        return {"simulated": True, "points": [{"time": t, "equity": e} for t, e in floor.paper.equity_curve]}
+        return {"simulated": floor.paper.simulated, "points": [{"time": t, "equity": e} for t, e in floor.paper.equity_curve]}
 
     @app.post("/api/v1/paper/close", dependencies=admin)
     async def close_position(body: ClosePositionRequest) -> dict:
@@ -247,12 +247,15 @@ def create_app(settings: Settings | None = None, providers: list[MarketDataProvi
             return {"trade": await floor.close_position(body.market, body.symbol)}
         except KeyError:
             raise HTTPException(status_code=404, detail="Não há posição simulada aberta nesse ativo.") from None
-        except RuntimeError as exc:
+        except RuntimeError as exc:  # inclui recusa ou falha da corretora no modo real
             raise HTTPException(status_code=409, detail=str(exc)) from None
 
     @app.post("/api/v1/paper/reset", dependencies=admin)
     async def reset_paper(body: ResetRequest) -> dict:
-        return await floor.reset_paper(body.initial_balance)
+        try:
+            return await floor.reset_paper(body.initial_balance)
+        except PermissionError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from None
 
     # ------------------------------------------------------------------ risco e autonomia
     @app.get("/api/v1/risk")

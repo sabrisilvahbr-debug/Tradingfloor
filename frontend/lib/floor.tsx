@@ -214,6 +214,11 @@ export function FloorProvider({ children }: { children: React.ReactNode }) {
   return <FloorContext.Provider value={value}>{children}</FloorContext.Provider>;
 }
 
+/** Verdadeiro quando o backend está no modo REAL (dinheiro de verdade). */
+export function useLive(): boolean {
+  return useFloor().system?.mode === "LIVE";
+}
+
 /** Busca um endereço do backend, repetindo a cada `intervalMs` e sempre que `refreshKey` mudar. */
 export function useApi<T>(path: string | null, intervalMs = 0, refreshKey: unknown = 0) {
   const [data, setData] = useState<T | null>(null);
