@@ -59,3 +59,10 @@ npm run dev          # http://127.0.0.1:8787
 npm test             # testes de paridade com o Python
 npm run check        # verificação de tipos
 ```
+
+## Um só app (painel + backend)
+
+Desde 11/11/2026 o Worker `tradingfloor` também serve o painel. O build do painel
+(`frontend/`, exportado como site estático) roda automaticamente antes de cada deploy, e o
+painel fala com o backend no mesmo endereço. Não é preciso configurar URL do backend nem
+CORS. A Netlify e a Vercel deixam de ser necessárias.

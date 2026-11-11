@@ -4,6 +4,16 @@
   "name": "tradingfloor",
   "main": "src/index.ts",
   "compatibility_date": "2026-11-01",
+  // Painel (Next.js exportado como site estático) servido pelo próprio Worker: um só app, um só endereço.
+  // O build do painel roda antes de cada deploy; /api, /ws e /health continuam indo para o código do Worker.
+  "build": {
+    "command": "npm ci --prefix ../frontend --no-audit --no-fund && NEXT_PUBLIC_API_URL= npm run build --prefix ../frontend"
+  },
+  "assets": {
+    "directory": "../frontend/out",
+    "not_found_handling": "404-page",
+    "run_worker_first": ["/api/*", "/ws/*", "/health"]
+  },
   "workers_dev": true,
   "preview_urls": false,
   "durable_objects": {
