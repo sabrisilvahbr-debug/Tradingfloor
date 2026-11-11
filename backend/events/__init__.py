@@ -1,0 +1,1 @@
+"""Barramento de eventos assíncrono."""

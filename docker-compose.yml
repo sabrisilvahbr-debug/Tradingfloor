@@ -1,0 +1,67 @@
+# TRADING MOHAMED FLOOR — sobe todos os serviços com um comando:
+#   docker compose up --build
+# Depois abra http://localhost:8080 no navegador.
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: tmf
+      POSTGRES_USER: tmf
+      POSTGRES_PASSWORD: ${TMF_POSTGRES_PASSWORD:?Defina TMF_POSTGRES_PASSWORD no arquivo .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tmf -d tmf"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: infrastructure/backend.Dockerfile
+    environment:
+      TMF_ENVIRONMENT: docker
+      TMF_POSTGRES_HOST: postgres
+      TMF_REDIS_HOST: redis
+      TMF_CORS_ORIGINS: '["http://localhost:8080"]'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: infrastructure/frontend.Dockerfile
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.27
+    volumes:
+      - ./infrastructure/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
