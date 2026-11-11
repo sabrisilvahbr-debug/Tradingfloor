@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
+from pathlib import Path
 from typing import Any, Protocol
 
 # Coleções que pertencem ao histórico financeiro da simulação.
@@ -68,7 +69,8 @@ class PostgresStore:
     async def connect(cls, dsn: str) -> "PostgresStore":
         import asyncpg
 
-        pool = await asyncpg.create_pool(dsn, min_size=1, max_size=5, timeout=5)
+        pool = await asyncpg.create_pool(dsn, min_size=1, max_size=5, timeout=10)
+        await apply_migrations(pool)
         return cls(pool)
 
     async def append(self, collection: str, doc: dict[str, Any], verified: bool = True) -> None:
@@ -103,6 +105,19 @@ class PostgresStore:
 
     async def close(self) -> None:
         await self._pool.close()
+
+
+MIGRATIONS_DIR = Path(__file__).resolve().parents[2] / "database"
+
+
+async def apply_migrations(pool: Any) -> list[str]:
+    """Aplica os arquivos database/*.sql em ordem. Todos podem ser reaplicados sem dano."""
+    applied = []
+    for path in sorted(MIGRATIONS_DIR.glob("*.sql")):
+        async with pool.acquire() as connection:
+            await connection.execute(path.read_text(encoding="utf-8"))
+        applied.append(path.name)
+    return applied
 
 
 def _roundtrip(doc: dict[str, Any]) -> dict[str, Any]:

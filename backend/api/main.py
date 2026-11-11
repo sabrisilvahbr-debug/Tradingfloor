@@ -74,7 +74,8 @@ def create_app(settings: Settings | None = None, providers: list[MarketDataProvi
 
     app = FastAPI(title=settings.app_name, version=__version__, lifespan=lifespan)
     app.add_middleware(
-        CORSMiddleware, allow_origins=settings.cors_origins, allow_methods=["GET", "POST"], allow_headers=["*"]
+        CORSMiddleware, allow_origins=settings.cors_origins,
+        allow_origin_regex=settings.cors_origin_regex or None, allow_methods=["GET", "POST"], allow_headers=["*"]
     )
     app.state.settings = settings
     app.state.floor = floor
@@ -104,7 +105,7 @@ def create_app(settings: Settings | None = None, providers: list[MarketDataProvi
     @app.get("/api/v1/system/status")
     async def system_status() -> dict:
         postgres, redis = await asyncio.gather(
-            check_tcp(settings.postgres_host, settings.postgres_port),
+            check_tcp(*settings.postgres_endpoint),
             check_tcp(settings.redis_host, settings.redis_port),
         )
         redis["detail"] += " (Ainda não utilizado pelo sistema: as filas rodam em memória.)"
@@ -123,7 +124,7 @@ def create_app(settings: Settings | None = None, providers: list[MarketDataProvi
                 "postgres": postgres,
                 "redis": redis,
                 "storage": {
-                    "state": "connected" if floor.store.persistent else "unavailable" if settings.postgres_host else "not_configured",
+                    "state": "connected" if floor.store.persistent else "unavailable" if settings.postgres_dsn else "not_configured",
                     "label": "Persistente" if floor.store.persistent else "Volátil",
                     "detail": floor.storage_detail,
                 },

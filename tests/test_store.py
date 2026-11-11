@@ -39,6 +39,8 @@ def test_postgres_store():
         store = await PostgresStore.connect(DSN)
         try:
             await store._pool.execute("TRUNCATE operational.records, financial.records")
+            from backend.memory.store import apply_migrations
+            assert await apply_migrations(store._pool) == ["001_init.sql", "002_records.sql"]  # reaplicável
             await exercise(store)
             fin = await store._pool.fetchval("SELECT count(*) FROM financial.records")
             op = await store._pool.fetchval("SELECT count(*) FROM operational.records")

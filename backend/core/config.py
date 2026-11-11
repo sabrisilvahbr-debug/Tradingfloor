@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 from functools import lru_cache
+from urllib.parse import quote, urlsplit
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -22,12 +23,16 @@ class Settings(BaseSettings):
     environment: str = "development"
     log_level: str = "INFO"
     cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    # Expressão regular de origens autorizadas (ex.: endereços da Vercel). Vazia = não usada.
+    cors_origin_regex: str = ""
 
     # Senha das ações de controle (kill switch, autonomia, reset...). Vazia = sem senha
     # (aceitável só no seu computador; obrigatória quando o sistema fica na internet).
     admin_token: str = ""
 
     # --- infraestrutura
+    # Endereço completo do banco (ex.: fornecido por Railway/Render). Tem prioridade sobre os campos abaixo.
+    database_url: str = Field(default="", repr=False)
     postgres_host: str = ""
     postgres_port: int = 5432
     postgres_user: str = "tmf"
@@ -86,12 +91,22 @@ class Settings(BaseSettings):
 
     @property
     def postgres_dsn(self) -> str | None:
+        if self.database_url:
+            return self.database_url
         if not self.postgres_host:
             return None
         return (
-            f"postgresql://{self.postgres_user}:{self.postgres_password}"
+            f"postgresql://{quote(self.postgres_user, safe='')}:{quote(self.postgres_password, safe='')}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
+
+    @property
+    def postgres_endpoint(self) -> tuple[str, int]:
+        """Servidor e porta do banco, para a verificação de saúde."""
+        if self.database_url:
+            parts = urlsplit(self.database_url)
+            return parts.hostname or "", parts.port or 5432
+        return self.postgres_host, self.postgres_port
 
 
 @lru_cache
