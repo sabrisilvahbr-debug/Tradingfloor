@@ -128,7 +128,7 @@ export const PHASES = [
     number: 13,
     name: "Testes completos",
     status: "partial",
-    note: "Testes automáticos do backend (Python e TypeScript); sem teste de carga.",
+    note: "Testes automáticos do backend em TypeScript: paridade numérica, risco, carteira simulada, CORS e leitura por imagem. Sem teste de carga.",
   },
   {
     number: 14,
@@ -136,5 +136,10 @@ export const PHASES = [
     status: "partial",
     note: "Backend na Cloudflare (plano gratuito), reescrito em TypeScript. Somente simulação: o modo com dinheiro real não está nesta versão.",
   },
-  { number: 15, name: "Preparação futura para análise por imagens", status: "pending", note: "Apenas documentada." },
+  {
+    number: 15,
+    name: "Análise por imagens",
+    status: "partial",
+    note: "Leitura de gráfico pelo Gemini, conferida com o preço real. Desligada até criar o secret GEMINI_API_KEY. Não entra em sinais nem ordens.",
+  },
 ];

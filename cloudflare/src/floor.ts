@@ -22,6 +22,7 @@ import { MeetingRoom } from "./orchestrator/meeting";
 import { Orchestrator, TaskFailed, TaskRejected } from "./orchestrator/orchestrator";
 import { AgentRegistry, UnknownAgentError } from "./orchestrator/registry";
 import { SqlStore } from "./store";
+import { DEFAULT_GEMINI_MODEL, VisionError, callGemini, crossCheck, parseVisionInput } from "./vision";
 
 /** Eventos frequentes demais para ir ao histórico persistente. */
 const NOT_LOGGED = new Set(["market.price", "agent.status_changed", "scanner.update", "meeting.message"]);
@@ -396,6 +397,8 @@ export class Floor extends DurableObject<Env> {
           return json({ reports: this.store.list("reports", clampInt(q.get("limit"), 20, 1, 100)) });
         case "/api/v1/research":
           return json({ proposals: this.store.list("strategy_proposals", clampInt(q.get("limit"), 10, 1, 50)) });
+        case "/api/v1/vision":
+          return json({ enabled: this.visionEnabled(), model: this.geminiModel(), readings: this.store.list("vision_readings", clampInt(q.get("limit"), 20, 1, 100)) });
       }
       const agent = /^\/api\/v1\/agents\/([^/]+)$/.exec(path);
       if (agent) {
@@ -471,11 +474,56 @@ export class Floor extends DurableObject<Env> {
         case "/api/v1/research/run":
           await this.requireAdmin(request);
           return json(await this.orchestrator.run("strategy_researcher", "research", {}, { dedupeKey: "strategy_researcher:research" }));
+        case "/api/v1/vision/analyze": {
+          await this.requireAdmin(request);
+          return json(await this.analyzeImage(await this.body(request)));
+        }
       }
     }
 
     const known = /^\/(health|api\/|ws\/)/.test(path);
     return known ? error(405, "Método não permitido.") : error(404, "Rota não encontrada");
+  }
+
+  // ---------------------------------------------------------------- fase 15: leitura por imagem
+  private geminiKey(): string {
+    return ((this.env as unknown as Record<string, string | undefined>).GEMINI_API_KEY ?? "").trim();
+  }
+
+  private geminiModel(): string {
+    return ((this.env as unknown as Record<string, string | undefined>).GEMINI_MODEL ?? "").trim() || DEFAULT_GEMINI_MODEL;
+  }
+
+  private visionEnabled(): boolean {
+    return this.geminiKey().length > 0;
+  }
+
+  private async analyzeImage(body: Record<string, unknown>): Promise<Record<string, unknown>> {
+    if (!this.visionEnabled()) {
+      throw new HttpError(503, "Leitura por imagem desligada: crie o secret GEMINI_API_KEY no Worker (Settings → Variables and Secrets).");
+    }
+    try {
+      const input = parseVisionInput(body);
+      const reading = await callGemini(input, this.geminiKey(), this.geminiModel());
+      const check = crossCheck(reading, this.market);
+      const record = {
+        id: hexId(),
+        time: isoNow(),
+        model: this.geminiModel(),
+        verified: false,
+        used_in_signals: false,
+        note: input.note,
+        reading,
+        cross_check: check,
+        warning: "Leitura automática de imagem, não verificada. Não é usada em sinais nem em ordens.",
+      };
+      this.store.append("vision_readings", record);
+      this.bus.emit("vision.reading", { symbol: reading.symbol_guess, status: check.status });
+      return record;
+    } catch (e) {
+      if (e instanceof VisionError) throw new HttpError(e.status, e.message);
+      throw e;
+    }
   }
 
   // ---------------------------------------------------------------- respostas
@@ -555,10 +603,9 @@ export class Floor extends DurableObject<Env> {
       markets: this.market.markets().map(({ id, label, state, state_label, detail }) => ({ id, label, state, state_label, detail })),
       autonomy: this.autonomy.status(),
       risk: this.risk.status(),
-      ai_model: {
-        state: "not_configured",
-        detail: "Nenhum modelo generativo conectado. Os agentes operam por regras determinísticas.",
-      },
+      ai_model: this.visionEnabled()
+        ? { state: "vision_only", detail: `Gemini (${this.geminiModel()}) ligado só para leitura de gráficos por imagem. Os agentes continuam operando por regras determinísticas.` }
+        : { state: "not_configured", detail: "Nenhum modelo generativo conectado. Os agentes operam por regras determinísticas." },
       orchestrator: { queue_size: this.orchestrator.queueSize, agents: this.orchestrator.stats() },
       phases: PHASES,
     };

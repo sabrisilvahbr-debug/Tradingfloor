@@ -59,3 +59,14 @@ na sua máquina. Detalhes e riscos: `MODO_REAL.md`.
 3. **Provedores para Forex, ações, índices e commodities** (em geral pagos) e de notícias.
 4. **Modelos 3D artísticos** dos personagens (produzir ou comprar).
 5. **Mudanças na estratégia aprovada** — o laboratório só propõe; aplicar é decisão sua.
+
+## Atualização de 11/11/2026 (versão Cloudflare)
+
+| Fase | Situação | Observação |
+|---|---|---|
+| 12 | Concluída | Memória no SQLite do Durable Object, com limite de registros por coleção. |
+| 13 | Parcial | 36 testes automáticos do Worker: paridade numérica com o Python, Risk Engine, carteira simulada, CORS e leitura por imagem. Sem teste de carga. |
+| 14 | Parcial | Worker `tradingfloor` na Cloudflare e painel estático na Netlify (`floor20.netlify.app`). Somente simulação. |
+| 15 | Parcial | Leitura de gráfico por imagem com o Gemini (`POST /api/v1/vision/analyze`). Desligada até criar o secret `GEMINI_API_KEY`. A leitura é marcada como não verificada, é conferida com o preço real e não entra em sinais nem ordens. A imagem não é guardada. |
+
+Não existe fase 16 neste projeto.

@@ -37,12 +37,12 @@ o resto pelo WebSocket.
 ## Como publicar
 
 1. Cloudflare → **Workers & Pages** → **Create application** → **GitHub** → repositório `tradingfloor`.
-2. **Project name:** `trading-mohamed-floor` (precisa ser igual ao `name` de `cloudflare/wrangler.jsonc`).
+2. **Project name:** `tradingfloor` (precisa ser igual ao `name` de `cloudflare/wrangler.jsonc`).
 3. **Advanced settings → Path:** `cloudflare`.
 4. **Deploy.** A cada `git push` na branch `main`, a Cloudflare publica de novo.
 5. Senha: no Worker, **Settings → Variables and Secrets → Add → Secret**, nome `ADMIN_TOKEN`.
    Use a mesma senha na aba **Config** do painel.
-6. Na Vercel, a variável `NEXT_PUBLIC_API_URL` precisa apontar para o endereço do Worker (`https://trading-mohamed-floor.<sua-conta>.workers.dev`).
+6. Na Vercel, a variável `NEXT_PUBLIC_API_URL` precisa apontar para o endereço do Worker (`https://tradingfloor.<sua-conta>.workers.dev`).
 
 ## Diagnóstico
 

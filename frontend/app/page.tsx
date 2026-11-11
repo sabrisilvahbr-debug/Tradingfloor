@@ -13,6 +13,7 @@ import { Overview } from "@/dashboard/Overview";
 import { HistoryPanel, PaperPanel } from "@/dashboard/PaperPanel";
 import { ReportsPanel } from "@/dashboard/ReportsPanel";
 import { SignalsPanel } from "@/dashboard/SignalsPanel";
+import { VisionPanel } from "@/dashboard/VisionPanel";
 import { FloorProvider, useFloor, useLive } from "@/lib/floor";
 import type { LinkState, Tab, View } from "@/lib/types";
 
@@ -123,7 +124,7 @@ function Floor() {
             {tab === "visao" && <Overview />}
             {tab === "agentes" && <AgentsPanel onSelect={setSelected} />}
             {tab === "mercados" && <MarketsPanel onChart={(market, symbol) => { setAsset({ ...asset, market, symbol }); setTab("grafico"); }} />}
-            {tab === "grafico" && <ChartPanel asset={asset} onAsset={setAsset} />}
+            {tab === "grafico" && <div className="space-y-4"><ChartPanel asset={asset} onAsset={setAsset} /><VisionPanel /></div>}
             {tab === "sinais" && <SignalsPanel asset={asset} />}
             {tab === "paper" && <PaperPanel />}
             {tab === "historico" && <HistoryPanel />}

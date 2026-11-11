@@ -2,7 +2,7 @@
 // Ao mudar uma, mude a outra.
 {
     // O nome precisa ser igual ao nome do Worker no painel da Cloudflare.
-  "name": "trading-mohamed-floor",
+  "name": "tradingfloor",
   "main": "cloudflare/src/index.ts",
   "compatibility_date": "2026-11-01",
   "workers_dev": true,
@@ -16,7 +16,9 @@
   "triggers": { "crons": ["*/5 * * * *"] },
   "vars": {
     "CORS_ORIGIN_REGEX": "^https://(tradingfloor[a-z0-9-]*\\.vercel\\.app|([a-z0-9-]+--)?floor20\\.netlify\\.app|([a-z0-9-]+\\.)?trading-mohamed-floor\\.pages\\.dev)$",
-    "BINANCE_REST": "https://data-api.binance.vision"
+    "BINANCE_REST": "https://data-api.binance.vision",
+    // Modelo do Gemini usado na leitura de gráficos por imagem (fase 15). A chave vai no secret GEMINI_API_KEY.
+    "GEMINI_MODEL": "gemini-2.5-flash"
   },
   "observability": { "enabled": true }
 }

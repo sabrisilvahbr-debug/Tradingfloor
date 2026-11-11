@@ -109,7 +109,7 @@ function BackendAddressCard() {
   return (
     <Card title="Endereço do backend">
       <p className="mb-2 text-sm text-mute">
-        URL do Worker da Cloudflare, por exemplo https://trading-mohamed-floor.sua-conta.workers.dev (sem barra no final). Fica salvo só neste navegador.
+        URL do Worker da Cloudflare, por exemplo https://tradingfloor.sua-conta.workers.dev (sem barra no final). Fica salvo só neste navegador.
       </p>
       <div className="flex flex-wrap gap-2">
         <input type="url" aria-label="Endereço do backend" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="https://...workers.dev"

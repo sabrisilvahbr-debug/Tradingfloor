@@ -19,6 +19,7 @@ export const RETENTION: Record<string, number> = {
   trades: 20000,
   reports: 200,
   strategy_proposals: 100,
+  vision_readings: 200,
 };
 
 export class SqlStore {
