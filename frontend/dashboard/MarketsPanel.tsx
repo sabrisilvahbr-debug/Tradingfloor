@@ -8,7 +8,7 @@ import type { Market } from "@/lib/types";
 
 export function MarketsPanel({ onChart }: { onChart: (market: string, symbol: string) => void }) {
   const { ticks, prices } = useFloor();
-  const { data, error } = useApi<{ markets: Market[] }>("/api/v1/markets", 4000, ticks.markets);
+  const { data, error } = useApi<{ markets: Market[] }>("/api/v1/markets", 15000, ticks.markets);
   if (error) return <ErrorNote>{error}</ErrorNote>;
   if (!data) return <Empty>Carregando mercados…</Empty>;
   return (

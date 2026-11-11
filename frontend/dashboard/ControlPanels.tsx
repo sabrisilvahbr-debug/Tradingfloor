@@ -66,8 +66,8 @@ export function RiskPanel() {
 }
 
 export function LogsPanel() {
-  const logs = useApi<{ events: FloorEvent[] }>("/api/v1/logs?limit=150", 4000);
-  const tasks = useApi<{ tasks: { id: string; agent_id: string; type: string; status: string; attempts: number; error: string | null; created_at: number }[] }>("/api/v1/tasks?limit=40", 4000);
+  const logs = useApi<{ events: FloorEvent[] }>("/api/v1/logs?limit=150", 10000);
+  const tasks = useApi<{ tasks: { id: string; agent_id: string; type: string; status: string; attempts: number; error: string | null; created_at: number }[] }>("/api/v1/tasks?limit=40", 10000);
   return (
     <div className="space-y-4">
       <Card title="Eventos do sistema (mais recentes primeiro)">

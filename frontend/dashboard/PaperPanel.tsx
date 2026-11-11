@@ -9,7 +9,7 @@ import type { Order, Trade } from "@/lib/types";
 export function PaperPanel() {
   const { portfolio: p, act, ticks } = useFloor();
   const live = useLive();
-  const equity = useApi<{ points: { time: number; equity: string }[] }>("/api/v1/paper/equity", 15000, ticks.paper);
+  const equity = useApi<{ points: { time: number; equity: string }[] }>("/api/v1/paper/equity", 60000, ticks.paper);
   const orders = useApi<{ orders: Order[] }>("/api/v1/paper/orders?limit=30", 0, ticks.paper);
   if (!p) return <Empty>Carteira indisponível: o backend não respondeu.</Empty>;
   const points = (equity.data?.points ?? []).map((pt) => ({ x: pt.time, y: Number(pt.equity) }));

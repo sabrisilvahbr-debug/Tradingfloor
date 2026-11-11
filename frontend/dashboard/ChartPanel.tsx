@@ -23,8 +23,8 @@ export function ChartPanel({ asset, onAsset }: { asset: Asset; onAsset: (asset: 
   const { ticks } = useFloor();
   const markets = useApi<{ markets: Market[]; intervals: string[] }>("/api/v1/markets", 0, ticks.markets);
   const base = `/api/v1/markets/${asset.market}/${asset.symbol}`;
-  const candles = useApi<CandlesResponse>(`${base}/candles?interval=${asset.interval}&limit=160`, 2500);
-  const indicators = useApi<{ fresh: boolean; indicators: Snapshot }>(`${base}/indicators?interval=${asset.interval}`, 5000);
+  const candles = useApi<CandlesResponse>(`${base}/candles?interval=${asset.interval}&limit=160`, 10000);
+  const indicators = useApi<{ fresh: boolean; indicators: Snapshot }>(`${base}/indicators?interval=${asset.interval}`, 30000);
   const options = (markets.data?.markets ?? []).flatMap((m) => m.symbols.map((s) => ({ market: m.id, symbol: s.symbol, label: `${s.symbol} · ${m.label}` })));
   const ind = indicators.data?.indicators;
   const stale = candles.data ? candles.data.state !== "connected" || (candles.data.quote?.age_seconds ?? 99) > 15 : false;

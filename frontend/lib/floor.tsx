@@ -4,7 +4,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { getJson, postJson, wsUrl } from "./api";
 import type { Agent, AgentStatus, FloorEvent, LinkState, MeetingMessage, Portfolio, Scan, SystemStatus, WsMessage } from "./types";
 
-const SYSTEM_REFRESH_MS = 8000;
+// Status e carteira também chegam por WebSocket; a consulta periódica é só uma garantia.
+const SYSTEM_REFRESH_MS = 20000;
 const MAX_RECONNECT_DELAY_MS = 15000;
 const TOKEN_KEY = "tmf_admin_token";
 

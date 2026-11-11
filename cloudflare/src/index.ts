@@ -15,7 +15,7 @@ export default {
     const url = new URL(request.url);
     if (request.method === "OPTIONS") return preflight(request, env);
 
-    if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/ws/")) {
+    if (url.pathname === "/health" || url.pathname.startsWith("/api/") || url.pathname.startsWith("/ws/")) {
       const response = await floorStub(env).fetch(request);
       if (response.webSocket) return response;
       const headers = new Headers(response.headers);
