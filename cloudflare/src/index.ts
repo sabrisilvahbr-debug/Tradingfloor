@@ -16,7 +16,13 @@ export default {
     if (request.method === "OPTIONS") return preflight(request, env);
 
     if (url.pathname === "/health" || url.pathname.startsWith("/api/") || url.pathname.startsWith("/ws/")) {
-      const response = await floorStub(env).fetch(request);
+      let response: Response;
+      try {
+        response = await floorStub(env).fetch(request);
+      } catch (e) {
+        console.error("Durable Object indisponível", { error: e instanceof Error ? e.message : String(e) });
+        response = Response.json({ detail: "O pregão está reiniciando. Tente de novo em alguns segundos." }, { status: 503 });
+      }
       if (response.webSocket) return response;
       const headers = new Headers(response.headers);
       for (const [key, value] of Object.entries(corsHeaders(request, env))) headers.set(key, value);
