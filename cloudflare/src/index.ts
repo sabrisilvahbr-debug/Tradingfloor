@@ -1,6 +1,7 @@
 // Ponto de entrada do Worker. Toda a lógica do pregão vive no Durable Object "Floor":
 // uma única instância com estado, banco SQLite próprio e conexões WebSocket.
 import { corsHeaders, preflight } from "./http";
+import { probeSources } from "./probe";
 
 export { Floor } from "./floor";
 
@@ -14,6 +15,10 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     if (request.method === "OPTIONS") return preflight(request, env);
+
+    if (url.pathname === "/api/edge-probe" && request.method === "GET") {
+      return Response.json({ from: "edge", ...(await probeSources()) }, { headers: corsHeaders(request, env) });
+    }
 
     if (url.pathname === "/health" || url.pathname.startsWith("/api/") || url.pathname.startsWith("/ws/")) {
       let response: Response;

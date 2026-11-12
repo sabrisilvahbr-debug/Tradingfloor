@@ -22,6 +22,7 @@ import { MeetingRoom } from "./orchestrator/meeting";
 import { Orchestrator, TaskFailed, TaskRejected } from "./orchestrator/orchestrator";
 import { AgentRegistry, UnknownAgentError } from "./orchestrator/registry";
 import { SqlStore } from "./store";
+import { probeSources } from "./probe";
 import { DEFAULT_GEMINI_MODEL, VisionError, callGemini, crossCheck, parseVisionInput } from "./vision";
 
 /** Eventos frequentes demais para ir ao histórico persistente. */
@@ -356,6 +357,7 @@ export class Floor extends DurableObject<Env> {
 
     if (path === "/health" && get) return json({ status: "ok" });
     if (path === "/api/health" && get) return json(await this.diagnostics());
+    if (path === "/api/probe" && get) return json({ from: "durable_object", ...(await probeSources()) });
 
     if (get) {
       switch (path) {

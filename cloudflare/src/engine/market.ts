@@ -33,18 +33,35 @@ export interface ProviderConfig {
   market_id: string;
   label: string;
   rest_base: string;
+  /** Endereços alternativos do mesmo provedor, tentados quando o atual recusa ou falha. */
+  fallback_bases?: string[];
   klines_path: string;
   ticker_path: string;
   /** A rota de preços aceita a lista de ativos (`symbols=[...]`); senão traz todos e filtra. */
   ticker_accepts_symbols: boolean;
 }
 
+/** Endereços oficiais da Binance Spot com os mesmos dados públicos. */
+export const BINANCE_SPOT_HOSTS = [
+  "https://data-api.binance.vision",
+  "https://api.binance.com",
+  "https://api-gcp.binance.com",
+  "https://api1.binance.com",
+  "https://api2.binance.com",
+  "https://api3.binance.com",
+  "https://api4.binance.com",
+];
+
 export function binanceProviders(spotRest: string): ProviderConfig[] {
+  const bases = spotRest.split(",").map((s) => s.trim().replace(/\/+$/, "")).filter(Boolean);
+  const [first, ...rest] = bases.length ? bases : BINANCE_SPOT_HOSTS;
+  const fallback = [...rest, ...BINANCE_SPOT_HOSTS].filter((h, i, all) => h !== first && all.indexOf(h) === i);
   return [
     {
       market_id: "binance_spot",
       label: "Binance Spot",
-      rest_base: spotRest,
+      rest_base: first,
+      fallback_bases: fallback,
       klines_path: "/api/v3/klines",
       ticker_path: "/api/v3/ticker/price",
       ticker_accepts_symbols: true,
@@ -139,7 +156,7 @@ export class MarketDataService {
       const symbols = this.watch[provider.market_id] ?? [];
       if (!symbols.length) continue;
       try {
-        await this.updatePrices(provider, symbols);
+        await this.updatePricesWithFallback(provider, symbols);
       } catch (e) {
         const attempt = (this.failures.get(provider.market_id) ?? 0) + 1;
         this.failures.set(provider.market_id, attempt);
@@ -185,6 +202,28 @@ export class MarketDataService {
     } catch {
       throw new ProviderError(`Resposta inesperada de ${label}`);
     }
+  }
+
+  /** Tenta o endereço atual; se recusar ou falhar, tenta os alternativos e fica com o primeiro que responder. */
+  private async updatePricesWithFallback(provider: ProviderConfig & { source_name: string }, symbols: string[]): Promise<void> {
+    const bases = [provider.rest_base, ...(provider.fallback_bases ?? []).filter((b) => b !== provider.rest_base)];
+    const errors: string[] = [];
+    for (const base of bases) {
+      const previous = provider.rest_base;
+      provider.rest_base = base;
+      try {
+        await this.updatePrices(provider, symbols);
+        if (base !== previous) {
+          provider.source_name = `${provider.label} (${base.split("//").pop()})`;
+          console.log("Fonte trocada", { market: provider.market_id, from: previous, to: base });
+        }
+        return;
+      } catch (e) {
+        provider.rest_base = previous;
+        errors.push(`${base.split("//").pop()}: ${describe(e)}`);
+      }
+    }
+    throw new ProviderError(errors.length > 1 ? `Nenhum endereço respondeu (${errors.join("; ")})` : errors[0] ?? "Sem endereço configurado");
   }
 
   private async updatePrices(provider: ProviderConfig & { source_name: string }, symbols: string[]): Promise<void> {
